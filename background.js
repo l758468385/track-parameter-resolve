@@ -2,7 +2,7 @@
 let capturedRequests = [];
 let isCapturing = false;
 
-// 监听来自 popup 的消息
+// 监听来自 popup 和 content script 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startCapture') {
     startCapturing();
@@ -14,6 +14,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ requests: capturedRequests });
   } else if (request.action === 'clearRequests') {
     capturedRequests = [];
+    sendResponse({ success: true });
+  } else if (request.action === 'interceptedRequest') {
+    // 处理来自 content script 的拦截请求
+    const requestInfo = request.request;
+    capturedRequests.unshift(requestInfo);
+    
+    // 限制保存的请求数量
+    if (capturedRequests.length > 100) {
+      capturedRequests = capturedRequests.slice(0, 100);
+    }
+    
+    // 通知其他组件有新请求
+    chrome.runtime.sendMessage({
+      action: 'newRequest',
+      request: requestInfo
+    }).catch(() => {
+      // 忽略错误
+    });
+    
     sendResponse({ success: true });
   }
 });
