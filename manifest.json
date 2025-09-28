@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Network Request Base64 Decoder",
+  "version": "1.0",
+  "description": "自动拦截和解码网络请求中的 base64 编码数据",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "webRequest",
+    "debugger"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Network Request Decoder"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "devtools_page": "devtools.html"
+}

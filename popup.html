@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 600px;
+      height: 500px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button.stop {
+      background: #f44336;
+    }
+    button.stop:hover {
+      background: #da190b;
+    }
+    button.clear {
+      background: #ff9800;
+    }
+    button.clear:hover {
+      background: #e68900;
+    }
+    .status {
+      font-size: 12px;
+      color: #666;
+    }
+    .requests-container {
+      height: 420px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .request-item {
+      border-bottom: 1px solid #eee;
+      padding: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .request-item:hover {
+      background-color: #f5f5f5;
+    }
+    .request-item.target-api {
+      border-left: 4px solid #4CAF50;
+    }
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .request-url {
+      font-weight: bold;
+      color: #2196F3;
+      font-size: 12px;
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .request-time {
+      font-size: 10px;
+      color: #999;
+    }
+    .request-method {
+      background: #2196F3;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-right: 8px;
+    }
+    .decoded-count {
+      background: #ff9800;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .request-details {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    .request-details.show {
+      display: block;
+    }
+    .decoded-item {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .field-name {
+      font-weight: bold;
+      color: #4CAF50;
+      margin-bottom: 5px;
+    }
+    .original-data {
+      background: #f5f5f5;
+      padding: 8px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      word-break: break-all;
+      margin-bottom: 8px;
+      max-height: 60px;
+      overflow-y: auto;
+    }
+    .decoded-data {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 10px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .no-requests {
+      text-align: center;
+      color: #999;
+      padding: 50px 20px;
+    }
+    .target-indicator {
+      background: #4CAF50;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2 style="margin: 0;">网络请求解码器</h2>
+    <div class="controls">
+      <button id="startBtn">开始捕获</button>
+      <button id="stopBtn" class="stop">停止捕获</button>
+      <button id="clearBtn" class="clear">清空</button>
+    </div>
+  </div>
+  
+  <div class="status" id="status">准备就绪</div>
+  
+  <div class="requests-container" id="requestsContainer">
+    <div class="no-requests">
+      点击"开始捕获"来监控网络请求中的 base64 数据
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
