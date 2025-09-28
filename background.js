@@ -77,7 +77,7 @@ function handleRequest(details) {
     const url = new URL(details.url);
     const isTargetAPI = isTargetEndpoint(url.pathname);
     
-    if (!isTargetAPI && !url.pathname.includes('api')) return;
+    if (!isTargetAPI) return;
     
     let requestData = null;
     let decodedData = [];
@@ -171,19 +171,8 @@ function handleRequest(details) {
 
 // 检查是否是目标 API 端点
 function isTargetEndpoint(pathname) {
-  const targetPatterns = [
-    '/api/statistics/v2/track',
-    '/api/track',
-    '/api/analytics',
-    '/api/events',
-    '/track',
-    '/analytics',
-    '/statistics'
-  ];
-  
-  return targetPatterns.some(pattern => 
-    pathname.includes(pattern) || pathname.endsWith(pattern)
-  );
+  // 只监控这一个特定的 API 端点
+  return pathname.includes('/api/statistics/v2/track');
 }
 
 // 查找并解码 JSON 对象中的 base64 数据

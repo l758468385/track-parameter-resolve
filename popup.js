@@ -130,19 +130,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         </div>
         <div>
-          ${
-            request.decodedData &&
-            request.decodedData.filter(
-              (item) => item.field === "data" || item.field.endsWith(".data")
-            ).length > 0
-              ? `<span class="decoded-count">${
-                  request.decodedData.filter(
-                    (item) =>
-                      item.field === "data" || item.field.endsWith(".data")
-                  ).length
-                } 个 data 字段</span>`
-              : ""
-          }
+         
           <span class="request-time">${time}</span>
         </div>
       </div>
@@ -191,7 +179,6 @@ document.addEventListener("DOMContentLoaded", function () {
       dataFields.forEach((decoded, index) => {
         html += `
           <div class="decoded-item">
-            <div class="field-name">字段: ${decoded.field}</div>
             <div style="margin-bottom: 8px;">
               <strong>原始 Base64:</strong>
               <div class="original-data">${decoded.original.substring(0, 200)}${
