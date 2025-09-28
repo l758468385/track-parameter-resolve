@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     div.innerHTML = `
       <div class="request-url">${request.method} ${url.pathname}${url.search}</div>
-      <div class="request-time">${time} - ${request.decodedData.length} 个 base64 字段</div>
+      <div class="request-time">${time} - ${request.decodedData ? request.decodedData.filter(item => item.field === 'data' || item.field.endsWith('.data')).length : 0} 个 data 字段</div>
       <div class="decoded-section" id="decoded-${index}">
         ${createDecodedHTML(request.decodedData)}
       </div>
@@ -101,12 +101,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function createDecodedHTML(decodedData) {
-    if (!decodedData || decodedData.length === 0) {
-      return '<div style="color: #999;">无 base64 数据</div>';
+    // 只显示 data 字段的解码数据
+    const dataFields = decodedData ? decodedData.filter(item => item.field === 'data' || item.field.endsWith('.data')) : [];
+    
+    if (!dataFields || dataFields.length === 0) {
+      return '<div style="color: #999;">无 data 字段的 base64 数据</div>';
     }
 
     let html = '';
-    decodedData.forEach(item => {
+    dataFields.forEach(item => {
       html += `
         <div class="decoded-item">
           <div class="field-name">字段: ${item.field}</div>
