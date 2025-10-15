@@ -54,7 +54,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function addRequest(request) {
     capturedRequests.unshift(request);
-    displayRequests();
+    // 新请求添加到最下面
+    const requestElement = createRequestListItem(request);
+    requestsList.appendChild(requestElement);
     updateStatus();
   }
 
@@ -76,7 +78,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     requestsList.innerHTML = '';
-    capturedRequests.forEach((request) => {
+    // 反转数组，让最旧的在上面，最新的在下面（像聊天记录）
+    const reversedRequests = [...capturedRequests].reverse();
+    reversedRequests.forEach((request) => {
       const requestElement = createRequestListItem(request);
       requestsList.appendChild(requestElement);
     });
@@ -89,7 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
       div.classList.add('selected');
     }
 
-    const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+    // 显示更精确的时间（包含毫秒）
+    const date = new Date(request.timestamp);
+    const time = date.toLocaleTimeString('zh-CN') + '.' + date.getMilliseconds().toString().padStart(3, '0');
     
     // 解析 URL 获取路径和查询参数
     const url = new URL(request.url);

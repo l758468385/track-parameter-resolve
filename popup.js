@@ -61,8 +61,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!requests || requests.length === 0) return;
 
     requestsList.innerHTML = '';
-    requests.forEach((request) => {
-      addRequestToUI(request);
+    // 反转数组，让最旧的在上面，最新的在下面
+    const reversedRequests = [...requests].reverse();
+    reversedRequests.forEach((request) => {
+      const requestElement = createRequestElement(request);
+      requestsList.appendChild(requestElement, requestsList.firstChild);
     });
   }
 
@@ -73,7 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const requestElement = createRequestElement(request);
-    requestsList.insertBefore(requestElement, requestsList.firstChild);
+    // 新请求添加到最下面（因为我们要最新的在下面）
+    requestsList.appendChild(requestElement);
     updateStatus();
   }
 
@@ -81,7 +85,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const div = document.createElement('div');
     div.className = 'request-item';
 
-    const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+    // 显示更精确的时间（包含毫秒）
+    const date = new Date(request.timestamp);
+    const time = date.toLocaleTimeString('zh-CN') + '.' + date.getMilliseconds().toString().padStart(3, '0');
     
     // 解析 URL 获取路径和查询参数
     const url = new URL(request.url);
@@ -97,8 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
     div.innerHTML = `
       <div class="request-header">
         <div class="request-info">
-          <div class="request-url" title="${request.url}">${displayUrl}</div>
           <div class="request-time">${time}</div>
+          <div class="request-url" title="${request.url}">${displayUrl}</div>
         </div>
         <div class="expand-icon">▶</div>
       </div>
