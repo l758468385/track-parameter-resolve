@@ -133,10 +133,24 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
+    // 绑定复制按钮事件
+    const copyBtn = div.querySelector('.copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function (e) {
+        e.stopPropagation(); // 防止触发展开/收起
+        const targetId = this.getAttribute('data-target');
+        const jsonElement = document.getElementById(targetId);
+        if (jsonElement) {
+          copyToClipboard(jsonElement.textContent, this);
+        }
+      });
+    }
+
     return div;
   }
 
   function createRequestDetailsHTML(request, dataField) {
+    const detailsId = `details-${request.id}`;
     let html = '';
 
     // 显示解码后的 data 字段
@@ -146,10 +160,8 @@ document.addEventListener('DOMContentLoaded', function () {
       html += `
         <div class="section">
           <div class="section-title">解码后的 Data 字段</div>
-          <div class="json-viewer">${decodedJson}</div>
-          <button class="copy-btn" onclick="copyToClipboard('${escapeForAttribute(
-            decodedJson
-          )}')">复制 JSON</button>
+          <div class="json-viewer" id="json-${request.id}">${decodedJson}</div>
+          <button class="copy-btn" data-target="json-${request.id}">复制 JSON</button>
         </div>
       `;
     } else {
@@ -193,33 +205,41 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function escapeForAttribute(str) {
-    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
-  // 全局复制函数
-  window.copyToClipboard = function (text) {
-    // 解码 HTML 实体
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    const decodedText = textarea.value;
-
+  function copyToClipboard(text, btn) {
     navigator.clipboard
-      .writeText(decodedText)
+      .writeText(text)
       .then(() => {
         // 显示复制成功提示
-        const btn = event.target;
         const originalText = btn.textContent;
+        const originalBg = btn.style.background;
         btn.textContent = '已复制!';
-        btn.style.background = '#2d8e47';
+        btn.style.background = '#34a853';
         setTimeout(() => {
           btn.textContent = originalText;
-          btn.style.background = '#34a853';
+          btn.style.background = originalBg;
         }, 1500);
       })
       .catch((err) => {
         console.error('复制失败:', err);
-        alert('复制失败，请手动复制');
+        // 降级方案：使用 execCommand
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          btn.textContent = '已复制!';
+          btn.style.background = '#34a853';
+          setTimeout(() => {
+            btn.textContent = '复制 JSON';
+            btn.style.background = '';
+          }, 1500);
+        } catch (e) {
+          alert('复制失败，请手动复制');
+        }
+        document.body.removeChild(textarea);
       });
-  };
+  }
 });
