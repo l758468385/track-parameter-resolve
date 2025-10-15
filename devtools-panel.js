@@ -54,6 +54,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function addRequest(request) {
     capturedRequests.unshift(request);
+    
+    // 如果列表中有空状态提示，先清空
+    const emptyState = requestsList.querySelector('.empty-state');
+    if (emptyState) {
+      requestsList.innerHTML = '';
+    }
+    
     // 新请求添加到最下面
     const requestElement = createRequestListItem(request);
     requestsList.appendChild(requestElement);
