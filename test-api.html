@@ -75,10 +75,10 @@
 
     <div class="test-section">
         <h2>测试请求</h2>
-        <button onclick="sendTrackingRequest()">发送统计追踪请求</button>
-        <button onclick="sendAnalyticsRequest()">发送分析请求</button>
-        <button onclick="sendEventRequest()">发送事件请求</button>
-        <button onclick="sendCustomRequest()">发送自定义请求</button>
+        <button onclick="sendTrackingRequest()">page_view 事件</button>
+        <button onclick="sendAnalyticsRequest()">cart.add 事件</button>
+        <button onclick="sendEventRequest()">order.complete 事件</button>
+        <button onclick="sendCustomRequest()">user.login 事件</button>
         <button onclick="clearLog()">清空日志</button>
         
         <div id="status"></div>
@@ -107,7 +107,7 @@
 
         // 模拟你的原始请求
         async function sendTrackingRequest() {
-            log('发送统计追踪请求...');
+            log('发送统计追踪请求 (page_view)...');
             
             const data = {
                 "api_version": "v2",
@@ -128,82 +128,79 @@
                 });
                 
                 log(`请求已发送，状态: ${response.status}`);
-                showStatus('统计追踪请求已发送，请检查插件是否捕获到 base64 数据');
+                showStatus('page_view 请求已发送');
             } catch (error) {
                 log(`请求失败: ${error.message}`);
-                showStatus('请求发送成功（网络错误正常，重点是插件拦截）');
+                showStatus('page_view 请求已发送（拦截成功）');
             }
         }
 
         async function sendAnalyticsRequest() {
-            log('发送分析请求...');
+            log('发送购物车添加事件 (cart.add)...');
             
-            const analyticsData = {
-                "user_id": "12345",
-                "event_type": "click",
-                "payload": "eyJ1c2VyX2lkIjoxMjM0NSwiYWN0aW9uIjoiY2xpY2siLCJ0YXJnZXQiOiJidXR0b24iLCJ0aW1lc3RhbXAiOjE3NTkwNDk3MTQ3NTMsInBhZ2UiOiIvcHJvZHVjdHMvZGFuZ2Vyb3VzLXJ1YnkifQ=="
+            const cartData = {
+                "api_version": "v2",
+                "session_id": "abc123xyz",
+                "data": "eyJwcm9kdWN0X2lkIjo3NjIwLCJwcm9kdWN0X25hbWUiOiJEYW5nZXJvdXMgUnVieSIsInF1YW50aXR5IjoxLCJwcmljZSI6OTkuOTksImN1cnJlbmN5IjoiVVNEIiwidGltZXN0YW1wIjoxNzU5MDQ5NzE0NzUzfQ=="
             };
 
             try {
-                await fetch('/api/analytics', {
+                await fetch('/api/statistics/v2/track?event_name=cart.add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(analyticsData)
+                    body: JSON.stringify(cartData)
                 });
-                log('分析请求已发送');
-                showStatus('分析请求已发送');
+                log('cart.add 请求已发送');
+                showStatus('cart.add 请求已发送');
             } catch (error) {
-                log(`分析请求: ${error.message}`);
-                showStatus('分析请求已发送（拦截成功）');
+                log(`cart.add 请求: ${error.message}`);
+                showStatus('cart.add 请求已发送（拦截成功）');
             }
         }
 
         async function sendEventRequest() {
-            log('发送事件请求...');
+            log('发送订单完成事件 (order.complete)...');
             
-            const eventData = {
-                "event_name": "user_interaction",
-                "properties": "eyJldmVudF90eXBlIjoidXNlcl9pbnRlcmFjdGlvbiIsInVzZXJfaWQiOjU2NzgsInNlc3Npb25faWQiOiJhYmMxMjMiLCJwYWdlX3VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdGVzdCIsInRpbWVzdGFtcCI6MTc1OTA0OTcxNDc1M30="
+            const orderData = {
+                "api_version": "v2",
+                "session_id": "order_session_456",
+                "data": "eyJvcmRlcl9pZCI6Ik9SRDEyMzQ1Iiwib3JkZXJfdG90YWwiOjI5OS45NywiY3VycmVuY3kiOiJVU0QiLCJpdGVtc19jb3VudCI6MywidXNlcl9pZCI6NTY3OCwidGltZXN0YW1wIjoxNzU5MDQ5NzE0NzUzfQ=="
             };
 
             try {
-                await fetch('/api/events', {
+                await fetch('/api/statistics/v2/track?event_name=order.complete&order_id=ORD12345', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(eventData)
+                    body: JSON.stringify(orderData)
                 });
-                log('事件请求已发送');
-                showStatus('事件请求已发送');
+                log('order.complete 请求已发送');
+                showStatus('order.complete 请求已发送');
             } catch (error) {
-                log(`事件请求: ${error.message}`);
-                showStatus('事件请求已发送（拦截成功）');
+                log(`order.complete 请求: ${error.message}`);
+                showStatus('order.complete 请求已发送（拦截成功）');
             }
         }
 
         async function sendCustomRequest() {
-            log('发送自定义请求...');
+            log('发送用户登录事件 (user.login)...');
             
-            // 创建一个包含多个 base64 字段的复杂对象
-            const customData = {
-                "api_key": "test_key_123",
-                "user_data": "eyJ1c2VyX2lkIjoxMjMsInVzZXJuYW1lIjoidGVzdF91c2VyIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwicm9sZSI6InVzZXIifQ==",
-                "config": {
-                    "settings": "eyJhcGlfa2V5IjoiYWJjZGVmZ2hpamtsbW5vcCIsImVuZHBvaW50IjoiaHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20iLCJ0aW1lb3V0IjozMDAwLCJyZXRyaWVzIjozfQ==",
-                    "metadata": "eyJ2ZXJzaW9uIjoiMS4wIiwiZW52aXJvbm1lbnQiOiJ0ZXN0IiwiZGVidWciOnRydWV9"
-                }
+            const loginData = {
+                "api_version": "v2",
+                "session_id": "login_session_789",
+                "data": "eyJ1c2VyX2lkIjoxMjM0NSwidXNlcm5hbWUiOiJqb2huX2RvZSIsImVtYWlsIjoiam9obkBleGFtcGxlLmNvbSIsImxvZ2luX21ldGhvZCI6ImVtYWlsIiwiaXBfYWRkcmVzcyI6IjE5Mi4xNjguMS4xMDAiLCJ0aW1lc3RhbXAiOjE3NTkwNDk3MTQ3NTN9"
             };
 
             try {
-                await fetch('/track', {
+                await fetch('/api/statistics/v2/track?event_name=user.login&user_id=12345', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(customData)
+                    body: JSON.stringify(loginData)
                 });
-                log('自定义请求已发送');
-                showStatus('自定义请求已发送（包含多个嵌套的 base64 字段）');
+                log('user.login 请求已发送');
+                showStatus('user.login 请求已发送');
             } catch (error) {
-                log(`自定义请求: ${error.message}`);
-                showStatus('自定义请求已发送（拦截成功）');
+                log(`user.login 请求: ${error.message}`);
+                showStatus('user.login 请求已发送（拦截成功）');
             }
         }
 

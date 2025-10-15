@@ -1,170 +1,173 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-      background: #ffffff;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    .toolbar {
-      background: #f3f3f3;
-      padding: 8px 12px;
-      border-bottom: 1px solid #d0d0d0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .toolbar-info {
-      font-size: 12px;
-      color: #333;
-      font-weight: 500;
-    }
-    .toolbar-actions {
-      display: flex;
-      gap: 8px;
-    }
-    button {
-      background: #fff;
-      border: 1px solid #d0d0d0;
-      padding: 4px 12px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 11px;
-      color: #333;
-    }
-    button:hover {
-      background: #f8f8f8;
-    }
-    .requests-container {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-    }
-    .requests-list {
-      width: 300px;
-      border-right: 1px solid #d0d0d0;
-      overflow-y: auto;
-      background: #fafafa;
-    }
-    .request-item {
-      padding: 10px 12px;
-      border-bottom: 1px solid #e0e0e0;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .request-item:hover {
-      background: #f0f0f0;
-    }
-    .request-item.selected {
-      background: #e8f0fe;
-      border-left: 3px solid #1a73e8;
-    }
-    .request-time {
-      font-size: 11px;
-      color: #5f6368;
-      margin-bottom: 4px;
-    }
-    .request-path {
-      font-size: 12px;
-      color: #1a73e8;
-      font-weight: 500;
-    }
-    .details-panel {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #5f6368;
-    }
-    .empty-icon {
-      font-size: 64px;
-      margin-bottom: 16px;
-      opacity: 0.3;
-    }
-    .empty-text {
-      font-size: 14px;
-    }
-    .section {
-      margin-bottom: 24px;
-    }
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #5f6368;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .json-viewer {
-      background: #1e1e1e;
-      color: #d4d4d4;
-      padding: 16px;
-      border-radius: 4px;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 12px;
-      line-height: 1.6;
-      overflow-x: auto;
-      white-space: pre;
-    }
-    .copy-btn {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      margin-top: 8px;
-      font-size: 11px;
-    }
-    .copy-btn:hover {
-      background: #1557b0;
-    }
-    .no-selection {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #5f6368;
-      font-size: 13px;
-    }
-  </style>
-</head>
-<body>
-  <div class="toolbar">
-    <div class="toolbar-info" id="status">Track API 解码器</div>
-    <div class="toolbar-actions">
-      <button id="refreshBtn">刷新</button>
-      <button id="clearBtn">清空</button>
-    </div>
-  </div>
-  
-  <div class="requests-container">
-    <div class="requests-list" id="requestsList">
-      <div class="empty-state">
-        <div class="empty-icon">📡</div>
-        <div class="empty-text">等待请求...</div>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
+          sans-serif;
+        background: #ffffff;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .toolbar {
+        background: #f3f3f3;
+        padding: 8px 12px;
+        border-bottom: 1px solid #d0d0d0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .toolbar-info {
+        font-size: 12px;
+        color: #333;
+        font-weight: 500;
+      }
+      .toolbar-actions {
+        display: flex;
+        gap: 8px;
+      }
+      button {
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        padding: 4px 12px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+        color: #333;
+      }
+      button:hover {
+        background: #f8f8f8;
+      }
+      .requests-container {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+      }
+      .requests-list {
+        width: 300px;
+        border-right: 1px solid #d0d0d0;
+        overflow-y: auto;
+        background: #fafafa;
+      }
+      .request-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e0e0e0;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .request-item:hover {
+        background: #f0f0f0;
+      }
+      .request-item.selected {
+        background: #e8f0fe;
+        border-left: 3px solid #1a73e8;
+      }
+      .request-time {
+        font-size: 11px;
+        color: #5f6368;
+        margin-bottom: 4px;
+      }
+      .request-path {
+        font-size: 12px;
+        color: #1a73e8;
+        font-weight: 500;
+        word-break: break-all;
+        line-height: 1.4;
+      }
+      .details-panel {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+      }
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #5f6368;
+      }
+      .empty-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.3;
+      }
+      .empty-text {
+        font-size: 14px;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      .section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .json-viewer {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 16px;
+        border-radius: 4px;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .copy-btn {
+        background: #1a73e8;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        margin-top: 8px;
+        font-size: 11px;
+      }
+      .copy-btn:hover {
+        background: #1557b0;
+      }
+      .no-selection {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #5f6368;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <div class="toolbar-info" id="status">Track API 解码器</div>
+      <div class="toolbar-actions">
+        <button id="refreshBtn">刷新</button>
+        <button id="clearBtn">清空</button>
       </div>
     </div>
-    <div class="details-panel" id="detailsPanel">
-      <div class="no-selection">← 选择一个请求查看详情</div>
-    </div>
-  </div>
 
-  <script src="devtools-panel.js"></script>
-</body>
+    <div class="requests-container">
+      <div class="requests-list" id="requestsList">
+        <div class="empty-state">
+          <div class="empty-icon">📡</div>
+          <div class="empty-text">等待请求...</div>
+        </div>
+      </div>
+      <div class="details-panel" id="detailsPanel">
+        <div class="no-selection">← 选择一个请求查看详情</div>
+      </div>
+    </div>
+
+    <script src="devtools-panel.js"></script>
+  </body>
 </html>

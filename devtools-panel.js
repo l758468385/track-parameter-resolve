@@ -90,10 +90,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+    
+    // 解析 URL 获取路径和查询参数
+    const url = new URL(request.url);
+    const displayUrl = url.pathname + url.search;
 
     div.innerHTML = `
       <div class="request-time">${time}</div>
-      <div class="request-path">/api/statistics/v2/track</div>
+      <div class="request-path" title="${request.url}">${displayUrl}</div>
     `;
 
     div.addEventListener('click', () => {

@@ -82,6 +82,10 @@ document.addEventListener('DOMContentLoaded', function () {
     div.className = 'request-item';
 
     const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+    
+    // 解析 URL 获取路径和查询参数
+    const url = new URL(request.url);
+    const displayUrl = url.pathname + url.search;
 
     // 提取 data 字段
     const dataField = request.decodedData
@@ -93,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
     div.innerHTML = `
       <div class="request-header">
         <div class="request-info">
-          <div class="request-url">/api/statistics/v2/track</div>
+          <div class="request-url" title="${request.url}">${displayUrl}</div>
           <div class="request-time">${time}</div>
         </div>
         <div class="expand-icon">▶</div>
