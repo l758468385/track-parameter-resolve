@@ -1,22 +1,16 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const startBtn = document.getElementById("startBtn");
-  const stopBtn = document.getElementById("stopBtn");
-  const clearBtn = document.getElementById("clearBtn");
-  const status = document.getElementById("status");
-  const requestsContainer = document.getElementById("requestsContainer");
-
-  let isCapturing = false;
+document.addEventListener('DOMContentLoaded', function () {
+  const clearBtn = document.getElementById('clearBtn');
+  const status = document.getElementById('status');
+  const requestsList = document.getElementById('requestsList');
 
   // 初始化
   init();
 
-  startBtn.addEventListener("click", startCapture);
-  stopBtn.addEventListener("click", stopCapture);
-  clearBtn.addEventListener("click", clearRequests);
+  clearBtn.addEventListener('click', clearRequests);
 
   // 监听来自 background 的新请求消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "newRequest") {
+    if (request.action === 'newRequest') {
       addRequestToUI(request.request);
     }
   });
@@ -25,73 +19,48 @@ document.addEventListener("DOMContentLoaded", function () {
     // 获取已捕获的请求
     try {
       const response = await chrome.runtime.sendMessage({
-        action: "getCapturedRequests",
+        action: 'getCapturedRequests',
       });
-      if (response && response.requests) {
+      if (response && response.requests && response.requests.length > 0) {
         displayRequests(response.requests);
       }
     } catch (error) {
-      console.error("获取请求失败:", error);
+      console.error('获取请求失败:', error);
     }
 
-    // 默认开始捕获
-    startCapture();
-  }
-
-  async function startCapture() {
+    // 自动开始捕获
     try {
-      await chrome.runtime.sendMessage({ action: "startCapture" });
-      isCapturing = true;
-      updateUI();
-      status.textContent = "正在捕获网络请求...";
+      await chrome.runtime.sendMessage({ action: 'startCapture' });
+      updateStatus();
     } catch (error) {
-      console.error("开始捕获失败:", error);
-      status.textContent = "启动失败";
-    }
-  }
-
-  async function stopCapture() {
-    try {
-      await chrome.runtime.sendMessage({ action: "stopCapture" });
-      isCapturing = false;
-      updateUI();
-      status.textContent = "已停止捕获";
-    } catch (error) {
-      console.error("停止捕获失败:", error);
+      console.error('开始捕获失败:', error);
     }
   }
 
   async function clearRequests() {
     try {
-      await chrome.runtime.sendMessage({ action: "clearRequests" });
-      requestsContainer.innerHTML = '<div class="no-requests">请求已清空</div>';
-      status.textContent = "请求已清空";
+      await chrome.runtime.sendMessage({ action: 'clearRequests' });
+      requestsList.innerHTML = `
+        <div class="no-requests">
+          <div class="no-requests-icon">📡</div>
+          <div class="empty-state">等待 /api/statistics/v2/track 请求...</div>
+        </div>
+      `;
+      updateStatus();
     } catch (error) {
-      console.error("清空请求失败:", error);
+      console.error('清空请求失败:', error);
     }
   }
 
-  function updateUI() {
-    startBtn.disabled = isCapturing;
-    stopBtn.disabled = !isCapturing;
-
-    if (isCapturing) {
-      startBtn.style.opacity = "0.5";
-      stopBtn.style.opacity = "1";
-    } else {
-      startBtn.style.opacity = "1";
-      stopBtn.style.opacity = "0.5";
-    }
+  function updateStatus() {
+    const count = requestsList.querySelectorAll('.request-item').length;
+    status.textContent = count > 0 ? `已捕获 ${count} 个请求` : '监控中...';
   }
 
   function displayRequests(requests) {
-    if (!requests || requests.length === 0) {
-      requestsContainer.innerHTML =
-        '<div class="no-requests">暂无捕获到的请求</div>';
-      return;
-    }
+    if (!requests || requests.length === 0) return;
 
-    requestsContainer.innerHTML = "";
+    requestsList.innerHTML = '';
     requests.forEach((request) => {
       addRequestToUI(request);
     });
@@ -99,113 +68,143 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function addRequestToUI(request) {
     // 如果容器显示"无请求"消息，先清空
-    if (requestsContainer.querySelector(".no-requests")) {
-      requestsContainer.innerHTML = "";
+    if (requestsList.querySelector('.no-requests')) {
+      requestsList.innerHTML = '';
     }
 
     const requestElement = createRequestElement(request);
-    requestsContainer.insertBefore(
-      requestElement,
-      requestsContainer.firstChild
-    );
+    requestsList.insertBefore(requestElement, requestsList.firstChild);
+    updateStatus();
   }
 
   function createRequestElement(request) {
-    const div = document.createElement("div");
-    div.className = `request-item ${request.isTargetAPI ? "target-api" : ""}`;
+    const div = document.createElement('div');
+    div.className = 'request-item';
 
-    const url = new URL(request.url);
-    const shortUrl = url.pathname + url.search;
-    const time = new Date(request.timestamp).toLocaleTimeString();
+    const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+
+    // 提取 data 字段
+    const dataField = request.decodedData
+      ? request.decodedData.find(
+          (item) => item.field === 'data' || item.field.endsWith('.data')
+        )
+      : null;
 
     div.innerHTML = `
       <div class="request-header">
-        <div>
-          <span class="request-method">${request.method}</span>
-          <span class="request-url" title="${request.url}">${shortUrl}</span>
-          ${
-            request.isTargetAPI
-              ? '<span class="target-indicator">目标API</span>'
-              : ""
-          }
+        <div class="request-info">
+          <div class="request-url">/api/statistics/v2/track</div>
+          <div class="request-time">${time}</div>
         </div>
-        <div>
-         
-          <span class="request-time">${time}</span>
-        </div>
+        <div class="expand-icon">▶</div>
       </div>
       <div class="request-details" id="details-${request.id}">
-        ${createRequestDetailsHTML(request)}
+        ${createRequestDetailsHTML(request, dataField)}
       </div>
     `;
 
     // 点击展开/收起详情
-    div.addEventListener("click", function (e) {
-      if (e.target.closest(".request-details")) return;
+    const header = div.querySelector('.request-header');
+    header.addEventListener('click', function () {
+      const details = div.querySelector('.request-details');
+      const isExpanded = details.classList.contains('show');
 
-      const details = div.querySelector(".request-details");
-      details.classList.toggle("show");
+      if (isExpanded) {
+        details.classList.remove('show');
+        div.classList.remove('expanded');
+      } else {
+        details.classList.add('show');
+        div.classList.add('expanded');
+      }
     });
 
     return div;
   }
 
-  function createRequestDetailsHTML(request) {
-    let html = "";
+  function createRequestDetailsHTML(request, dataField) {
+    let html = '';
 
-    // 显示原始请求数据
-    if (request.requestData) {
+    // 显示解码后的 data 字段
+    if (dataField) {
+      const decodedJson = formatJSON(dataField.decoded);
+
       html += `
-        <div style="margin-bottom: 15px;">
-          <div class="field-name">原始请求数据:</div>
-          <div class="original-data">${request.requestData.substring(0, 500)}${
-        request.requestData.length > 500 ? "..." : ""
-      }</div>
+        <div class="section">
+          <div class="section-title">解码后的 Data 字段</div>
+          <div class="json-viewer">${decodedJson}</div>
+          <button class="copy-btn" onclick="copyToClipboard('${escapeForAttribute(
+            decodedJson
+          )}')">复制 JSON</button>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="section">
+          <div style="color: #5f6368; font-size: 12px; font-style: italic;">未找到 data 字段</div>
         </div>
       `;
     }
 
-    // 显示解码的数据 - 只显示 data 字段
-    const dataFields = request.decodedData
-      ? request.decodedData.filter(
-          (item) => item.field === "data" || item.field.endsWith(".data")
-        )
-      : [];
-
-    if (dataFields.length > 0) {
-      html +=
-        '<div style="margin-bottom: 10px;"><strong>解码的 data 字段:</strong></div>';
-
-      dataFields.forEach((decoded, index) => {
-        html += `
-          <div class="decoded-item">
-            <div style="margin-bottom: 8px;">
-              <strong>原始 Base64:</strong>
-              <div class="original-data">${decoded.original.substring(0, 200)}${
-          decoded.original.length > 200 ? "..." : ""
-        }</div>
-            </div>
-            <div>
-              <strong>解码结果:</strong>
-              <div class="decoded-data">${formatDecodedData(
-                decoded.decoded
-              )}</div>
-            </div>
-          </div>
-        `;
-      });
-    } else {
-      html +=
-        '<div style="color: #999; font-style: italic;">此请求未包含 data 字段的 base64 编码数据</div>';
+    // 显示原始请求数据（可折叠）
+    if (request.requestData) {
+      html += `
+        <div class="section">
+          <div class="section-title">原始请求载荷</div>
+          <details>
+            <summary style="cursor: pointer; color: #1a73e8; font-size: 12px; margin-bottom: 8px;">显示原始数据</summary>
+            <div class="json-viewer">${formatJSON(
+              tryParseJSON(request.requestData)
+            )}</div>
+          </details>
+        </div>
+      `;
     }
 
     return html;
   }
 
-  function formatDecodedData(data) {
-    if (typeof data === "object") {
+  function formatJSON(data) {
+    if (typeof data === 'object') {
       return JSON.stringify(data, null, 2);
     }
     return data;
   }
+
+  function tryParseJSON(str) {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      return str;
+    }
+  }
+
+  function escapeForAttribute(str) {
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // 全局复制函数
+  window.copyToClipboard = function (text) {
+    // 解码 HTML 实体
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    const decodedText = textarea.value;
+
+    navigator.clipboard
+      .writeText(decodedText)
+      .then(() => {
+        // 显示复制成功提示
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '已复制!';
+        btn.style.background = '#2d8e47';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '#34a853';
+        }, 1500);
+      })
+      .catch((err) => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+      });
+  };
 });

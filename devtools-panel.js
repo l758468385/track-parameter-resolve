@@ -1,10 +1,12 @@
 // DevTools 面板脚本
 let capturedRequests = [];
+let selectedRequestId = null;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const refreshBtn = document.getElementById('refreshBtn');
   const clearBtn = document.getElementById('clearBtn');
   const requestsList = document.getElementById('requestsList');
+  const detailsPanel = document.getElementById('detailsPanel');
   const status = document.getElementById('status');
 
   refreshBtn.addEventListener('click', refreshRequests);
@@ -22,11 +24,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function refreshRequests() {
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'getCapturedRequests' });
+      const response = await chrome.runtime.sendMessage({
+        action: 'getCapturedRequests',
+      });
       if (response && response.requests) {
         capturedRequests = response.requests;
         displayRequests();
-        status.textContent = `已捕获 ${capturedRequests.length} 个请求`;
+        updateStatus();
       }
     } catch (error) {
       console.error('获取请求失败:', error);
@@ -38,8 +42,11 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       await chrome.runtime.sendMessage({ action: 'clearRequests' });
       capturedRequests = [];
+      selectedRequestId = null;
       displayRequests();
-      status.textContent = '请求已清空';
+      detailsPanel.innerHTML =
+        '<div class="no-selection">← 选择一个请求查看详情</div>';
+      updateStatus();
     } catch (error) {
       console.error('清空请求失败:', error);
     }
@@ -48,92 +55,170 @@ document.addEventListener('DOMContentLoaded', function() {
   function addRequest(request) {
     capturedRequests.unshift(request);
     displayRequests();
-    status.textContent = `已捕获 ${capturedRequests.length} 个请求`;
+    updateStatus();
+  }
+
+  function updateStatus() {
+    const count = capturedRequests.length;
+    status.textContent =
+      count > 0 ? `已捕获 ${count} 个请求` : 'Track API 解码器';
   }
 
   function displayRequests() {
     if (capturedRequests.length === 0) {
-      requestsList.innerHTML = '<div class="no-data">暂无检测到包含 base64 数据的请求</div>';
+      requestsList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📡</div>
+          <div class="empty-text">等待请求...</div>
+        </div>
+      `;
       return;
     }
 
     requestsList.innerHTML = '';
-    capturedRequests.forEach((request, index) => {
-      const requestElement = createRequestElement(request, index);
+    capturedRequests.forEach((request) => {
+      const requestElement = createRequestListItem(request);
       requestsList.appendChild(requestElement);
     });
   }
 
-  function createRequestElement(request, index) {
+  function createRequestListItem(request) {
     const div = document.createElement('div');
     div.className = 'request-item';
-    
-    const url = new URL(request.url);
-    const time = new Date(request.timestamp).toLocaleString();
-    
+    if (request.id === selectedRequestId) {
+      div.classList.add('selected');
+    }
+
+    const time = new Date(request.timestamp).toLocaleTimeString('zh-CN');
+
     div.innerHTML = `
-      <div class="request-url">${request.method} ${url.pathname}${url.search}</div>
-      <div class="request-time">${time} - ${request.decodedData ? request.decodedData.filter(item => item.field === 'data' || item.field.endsWith('.data')).length : 0} 个 data 字段</div>
-      <div class="decoded-section" id="decoded-${index}">
-        ${createDecodedHTML(request.decodedData)}
-      </div>
+      <div class="request-time">${time}</div>
+      <div class="request-path">/api/statistics/v2/track</div>
     `;
 
-    div.addEventListener('click', function() {
-      const decodedSection = div.querySelector('.decoded-section');
-      const isExpanded = decodedSection.classList.contains('show');
-      
-      // 收起所有其他项
-      document.querySelectorAll('.decoded-section.show').forEach(section => {
-        section.classList.remove('show');
+    div.addEventListener('click', () => {
+      selectedRequestId = request.id;
+      // 更新选中状态
+      document.querySelectorAll('.request-item').forEach((item) => {
+        item.classList.remove('selected');
       });
-      document.querySelectorAll('.request-item.expanded').forEach(item => {
-        item.classList.remove('expanded');
-      });
-      
-      if (!isExpanded) {
-        decodedSection.classList.add('show');
-        div.classList.add('expanded');
-      }
+      div.classList.add('selected');
+      // 显示详情
+      showRequestDetails(request);
     });
 
     return div;
   }
 
-  function createDecodedHTML(decodedData) {
-    // 只显示 data 字段的解码数据
-    const dataFields = decodedData ? decodedData.filter(item => item.field === 'data' || item.field.endsWith('.data')) : [];
-    
-    if (!dataFields || dataFields.length === 0) {
-      return '<div style="color: #999;">无 data 字段的 base64 数据</div>';
-    }
+  function showRequestDetails(request) {
+    // 提取 data 字段
+    const dataField = request.decodedData
+      ? request.decodedData.find(
+          (item) => item.field === 'data' || item.field.endsWith('.data')
+        )
+      : null;
 
     let html = '';
-    dataFields.forEach(item => {
+
+    if (dataField) {
+      const decodedJson = formatJSON(dataField.decoded);
+
       html += `
-        <div class="decoded-item">
-          <div class="field-name">字段: ${item.field}</div>
-          <div style="margin-bottom: 10px;">
-            <strong>原始 Base64:</strong>
-            <div style="background: #f5f5f5; padding: 8px; border-radius: 3px; font-family: monospace; font-size: 11px; word-break: break-all; max-height: 60px; overflow-y: auto;">
-              ${item.original}
-            </div>
-          </div>
-          <div>
-            <strong>解码结果:</strong>
-            <div class="json-data">${formatData(item.decoded)}</div>
-          </div>
+        <div class="section">
+          <div class="section-title">解码后的 Data 字段</div>
+          <div class="json-viewer">${decodedJson}</div>
+          <button class="copy-btn" data-copy="${escapeForAttribute(
+            decodedJson
+          )}">复制 JSON</button>
         </div>
       `;
-    });
+    } else {
+      html += `
+        <div class="section">
+          <div style="color: #5f6368; font-size: 12px; font-style: italic;">未找到 data 字段</div>
+        </div>
+      `;
+    }
 
-    return html;
+    // 原始请求数据
+    if (request.requestData) {
+      html += `
+        <div class="section">
+          <div class="section-title">原始请求载荷</div>
+          <details>
+            <summary style="cursor: pointer; color: #1a73e8; font-size: 12px; margin-bottom: 12px;">显示原始数据</summary>
+            <div class="json-viewer">${formatJSON(
+              tryParseJSON(request.requestData)
+            )}</div>
+          </details>
+        </div>
+      `;
+    }
+
+    // 请求信息
+    html += `
+      <div class="section">
+        <div class="section-title">请求信息</div>
+        <div style="font-size: 12px; color: #333; line-height: 1.8;">
+          <div><strong>URL:</strong> ${request.url}</div>
+          <div><strong>方法:</strong> ${request.method}</div>
+          <div><strong>时间:</strong> ${new Date(
+            request.timestamp
+          ).toLocaleString('zh-CN')}</div>
+        </div>
+      </div>
+    `;
+
+    detailsPanel.innerHTML = html;
+
+    // 绑定复制按钮事件
+    detailsPanel.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', function () {
+        const text = this.getAttribute('data-copy');
+        copyToClipboard(text, this);
+      });
+    });
   }
 
-  function formatData(data) {
+  function formatJSON(data) {
     if (typeof data === 'object') {
       return JSON.stringify(data, null, 2);
     }
     return data;
+  }
+
+  function tryParseJSON(str) {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      return str;
+    }
+  }
+
+  function escapeForAttribute(str) {
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function copyToClipboard(text, btn) {
+    // 解码 HTML 实体
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    const decodedText = textarea.value;
+
+    navigator.clipboard
+      .writeText(decodedText)
+      .then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = '已复制!';
+        btn.style.background = '#34a853';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '#1a73e8';
+        }, 1500);
+      })
+      .catch((err) => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+      });
   }
 });

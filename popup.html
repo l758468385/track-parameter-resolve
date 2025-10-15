@@ -3,179 +3,173 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body {
-      width: 600px;
-      height: 500px;
-      padding: 15px;
-      font-family: Arial, sans-serif;
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 700px;
+      height: 600px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: #f8f9fa;
     }
     .header {
+      background: white;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #ddd;
     }
-    .controls {
-      display: flex;
-      gap: 10px;
+    .header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
     }
-    button {
-      background: #4CAF50;
-      color: white;
-      padding: 8px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    button.stop {
-      background: #f44336;
-    }
-    button.stop:hover {
-      background: #da190b;
-    }
-    button.clear {
-      background: #ff9800;
-    }
-    button.clear:hover {
-      background: #e68900;
-    }
-    .status {
+    .header-info {
       font-size: 12px;
       color: #666;
     }
-    .requests-container {
-      height: 420px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
+    button {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 6px 12px;
       border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #1557b0;
+    }
+    button.clear {
+      background: #5f6368;
+      margin-left: 8px;
+    }
+    button.clear:hover {
+      background: #3c4043;
+    }
+    .requests-list {
+      height: calc(100% - 50px);
+      overflow-y: auto;
     }
     .request-item {
-      border-bottom: 1px solid #eee;
-      padding: 10px;
-      cursor: pointer;
-      transition: background-color 0.2s;
+      background: white;
+      margin: 8px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      overflow: hidden;
+      transition: box-shadow 0.2s;
     }
     .request-item:hover {
-      background-color: #f5f5f5;
-    }
-    .request-item.target-api {
-      border-left: 4px solid #4CAF50;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     .request-header {
+      padding: 12px 16px;
+      cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 5px;
+      background: #fafafa;
+    }
+    .request-header:hover {
+      background: #f5f5f5;
+    }
+    .request-info {
+      flex: 1;
     }
     .request-url {
-      font-weight: bold;
-      color: #2196F3;
-      font-size: 12px;
-      max-width: 400px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a73e8;
+      margin-bottom: 4px;
     }
     .request-time {
-      font-size: 10px;
-      color: #999;
+      font-size: 11px;
+      color: #5f6368;
     }
-    .request-method {
-      background: #2196F3;
-      color: white;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      margin-right: 8px;
+    .expand-icon {
+      color: #5f6368;
+      font-size: 18px;
+      transition: transform 0.2s;
     }
-    .decoded-count {
-      background: #ff9800;
-      color: white;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 10px;
+    .request-item.expanded .expand-icon {
+      transform: rotate(90deg);
     }
     .request-details {
       display: none;
-      margin-top: 10px;
-      padding: 10px;
-      background: #f9f9f9;
-      border-radius: 4px;
+      padding: 16px;
+      border-top: 1px solid #e0e0e0;
     }
     .request-details.show {
       display: block;
     }
-    .decoded-item {
-      margin-bottom: 15px;
-      padding: 10px;
-      background: white;
-      border-radius: 4px;
-      border: 1px solid #ddd;
+    .section {
+      margin-bottom: 16px;
     }
-    .field-name {
-      font-weight: bold;
-      color: #4CAF50;
-      margin-bottom: 5px;
+    .section:last-child {
+      margin-bottom: 0;
     }
-    .original-data {
-      background: #f5f5f5;
-      padding: 8px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 11px;
-      word-break: break-all;
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #5f6368;
       margin-bottom: 8px;
-      max-height: 60px;
-      overflow-y: auto;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .decoded-data {
-      background: #2d3748;
-      color: #e2e8f0;
-      padding: 10px;
-      border-radius: 3px;
-      font-family: monospace;
+    .json-viewer {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 12px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .copy-btn {
+      background: #34a853;
+      padding: 4px 10px;
       font-size: 11px;
-      white-space: pre-wrap;
-      max-height: 200px;
-      overflow-y: auto;
+      margin-top: 8px;
+    }
+    .copy-btn:hover {
+      background: #2d8e47;
     }
     .no-requests {
       text-align: center;
-      color: #999;
-      padding: 50px 20px;
+      padding: 60px 20px;
+      color: #5f6368;
     }
-    .target-indicator {
-      background: #4CAF50;
-      color: white;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      margin-left: 5px;
+    .no-requests-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+    .empty-state {
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h2 style="margin: 0;">网络请求解码器</h2>
-    <div class="controls">
-      <button id="startBtn">开始捕获</button>
-      <button id="stopBtn" class="stop">停止捕获</button>
-      <button id="clearBtn" class="clear">清空</button>
+    <div>
+      <h2>Track API 解码器</h2>
+      <div class="header-info" id="status">监控中...</div>
+    </div>
+    <div>
+      <button id="clearBtn" class="clear">清空列表</button>
     </div>
   </div>
   
-  <div class="status" id="status">准备就绪</div>
-  
-  <div class="requests-container" id="requestsContainer">
+  <div class="requests-list" id="requestsList">
     <div class="no-requests">
-      点击"开始捕获"来监控网络请求中的 base64 数据
+      <div class="no-requests-icon">📡</div>
+      <div class="empty-state">等待 /api/statistics/v2/track 请求...</div>
     </div>
   </div>
 
