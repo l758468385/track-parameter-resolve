@@ -93,17 +93,22 @@ document.addEventListener('DOMContentLoaded', function () {
       div.classList.add('selected');
     }
 
-    // 显示更精确的时间（包含毫秒）
+    // 使用简洁的时间格式（只显示时:分:秒）
     const date = new Date(request.timestamp);
-    const time = date.toLocaleTimeString('zh-CN') + '.' + date.getMilliseconds().toString().padStart(3, '0');
+    const time = date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: false 
+    });
     
     // 解析 URL 获取路径和查询参数
     const url = new URL(request.url);
     const displayUrl = url.pathname + url.search;
 
     div.innerHTML = `
-      <div class="request-time">${time}</div>
       <div class="request-path" title="${request.url}">${displayUrl}</div>
+      <div class="request-time">${time}</div>
     `;
 
     div.addEventListener('click', () => {

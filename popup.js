@@ -85,9 +85,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const div = document.createElement('div');
     div.className = 'request-item';
 
-    // 显示更精确的时间（包含毫秒）
+    // 使用简洁的时间格式（只显示时:分:秒）
     const date = new Date(request.timestamp);
-    const time = date.toLocaleTimeString('zh-CN') + '.' + date.getMilliseconds().toString().padStart(3, '0');
+    const time = date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: false 
+    });
     
     // 解析 URL 获取路径和查询参数
     const url = new URL(request.url);
@@ -103,9 +108,9 @@ document.addEventListener('DOMContentLoaded', function () {
     div.innerHTML = `
       <div class="request-header">
         <div class="request-info">
-          <div class="request-time">${time}</div>
           <div class="request-url" title="${request.url}">${displayUrl}</div>
         </div>
+        <div class="request-time">${time}</div>
         <div class="expand-icon">▶</div>
       </div>
       <div class="request-details" id="details-${request.id}">
