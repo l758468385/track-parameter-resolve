@@ -2,6 +2,17 @@
 let capturedRequests = [];
 let isCapturing = false;
 
+// 更新插件图标角标
+function updateBadge() {
+  const count = capturedRequests.length;
+  if (count > 0) {
+    chrome.action.setBadgeText({ text: count.toString() });
+    chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' }); // 蓝色背景
+  } else {
+    chrome.action.setBadgeText({ text: '' }); // 清空角标
+  }
+}
+
 // 监听来自 popup 和 content script 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startCapture') {
@@ -14,6 +25,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ requests: capturedRequests });
   } else if (request.action === 'clearRequests') {
     capturedRequests = [];
+    updateBadge(); // 更新角标
     sendResponse({ success: true });
   } else if (request.action === 'interceptedRequest') {
     // 处理来自 content script 的拦截请求
@@ -24,6 +36,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (capturedRequests.length > 100) {
       capturedRequests = capturedRequests.slice(0, 100);
     }
+    
+    // 更新角标
+    updateBadge();
     
     // 通知其他组件有新请求
     chrome.runtime.sendMessage({
@@ -155,6 +170,9 @@ function handleRequest(details) {
         capturedRequests = capturedRequests.slice(0, 100);
       }
       
+      // 更新角标
+      updateBadge();
+      
       // 通知 popup 有新请求
       chrome.runtime.sendMessage({
         action: 'newRequest',
@@ -224,8 +242,10 @@ function tryParseJSON(str) {
 // 插件启动时自动开始捕获
 chrome.runtime.onStartup.addListener(() => {
   startCapturing();
+  updateBadge(); // 初始化角标
 });
 
 chrome.runtime.onInstalled.addListener(() => {
   startCapturing();
+  updateBadge(); // 初始化角标
 });
