@@ -53,7 +53,7 @@
           // 不是 JSON，检查是否直接是 base64
           if (isBase64(data)) {
             try {
-              const decoded = atob(data);
+              const decoded = decodeBase64UTF8(data);
               decodedData.push({
                 field: "request_body",
                 original: data,
@@ -72,7 +72,7 @@
 
           if (typeof value === "string" && isBase64(value)) {
             try {
-              const decoded = atob(value);
+              const decoded = decodeBase64UTF8(value);
               decodedData.push({
                 field: key,
                 original: value,
@@ -130,6 +130,20 @@
     return targetPatterns.some((pattern) => url.includes(pattern));
   }
 
+  // Base64 解码并正确处理 UTF-8
+  function decodeBase64UTF8(base64Str) {
+    // 先用 atob 解码 base64
+    const binaryStr = atob(base64Str);
+    // 将二进制字符串转换为字节数组
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    // 使用 TextDecoder 正确解码 UTF-8
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(bytes);
+  }
+
   // 查找并解码 JSON 对象中的 data 字段
   function findAndDecodeBase64(obj, path = "") {
     const results = [];
@@ -141,7 +155,7 @@
         // 只处理名为 'data' 的字段
         if (key === "data" && typeof value === "string") {
           try {
-            const decoded = atob(value);
+            const decoded = decodeBase64UTF8(value);
             results.push({
               field: currentPath,
               original: value,
