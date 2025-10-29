@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const clearBtn = document.getElementById('clearBtn');
   const status = document.getElementById('status');
   const requestsList = document.getElementById('requestsList');
+  let currentTabId = null; // 当前活动标签页 ID
 
   // 初始化
   init();
@@ -10,16 +11,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 监听来自 background 的新请求消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'newRequest') {
+    // 只显示当前标签页的请求
+    if (request.action === 'newRequest' && request.tabId === currentTabId) {
       addRequestToUI(request.request);
     }
   });
 
   async function init() {
+    // 获取当前活动标签页
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      currentTabId = tab.id;
+    } catch (error) {
+      console.error('获取当前标签页失败:', error);
+      return;
+    }
+
     // 获取已捕获的请求
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'getCapturedRequests',
+        tabId: currentTabId, // 传递当前标签页 ID
       });
       if (response && response.requests && response.requests.length > 0) {
         displayRequests(response.requests);
@@ -39,7 +51,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function clearRequests() {
     try {
-      await chrome.runtime.sendMessage({ action: 'clearRequests' });
+      await chrome.runtime.sendMessage({ 
+        action: 'clearRequests',
+        tabId: currentTabId // 传递当前标签页 ID
+      });
       requestsList.innerHTML = `
         <div class="no-requests">
           <div class="no-requests-icon">📡</div>

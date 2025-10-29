@@ -1,6 +1,7 @@
 // DevTools 面板脚本
 let capturedRequests = [];
 let selectedRequestId = null;
+let currentTabId = chrome.devtools.inspectedWindow.tabId; // 获取当前标签页 ID
 
 document.addEventListener("DOMContentLoaded", function () {
   const refreshBtn = document.getElementById("refreshBtn");
@@ -17,7 +18,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 监听来自 background 的消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "newRequest") {
+    // 只处理当前标签页的请求
+    if (request.action === "newRequest" && request.tabId === currentTabId) {
       addRequest(request.request);
     }
   });
@@ -26,6 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const response = await chrome.runtime.sendMessage({
         action: "getCapturedRequests",
+        tabId: currentTabId, // 传递当前标签页 ID
       });
       if (response && response.requests) {
         capturedRequests = response.requests;
@@ -40,7 +43,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function clearRequests() {
     try {
-      await chrome.runtime.sendMessage({ action: "clearRequests" });
+      await chrome.runtime.sendMessage({ 
+        action: "clearRequests",
+        tabId: currentTabId // 传递当前标签页 ID
+      });
       capturedRequests = [];
       selectedRequestId = null;
       displayRequests();
