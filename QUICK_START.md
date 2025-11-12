@@ -34,12 +34,12 @@
 
 插件会自动拦截以下类型的 API 请求：
 - `/api/statistics/v2/track`
-- `/api/track`
-- `/api/analytics`
-- `/api/events`
-- `/track`
-- `/analytics`
-- `/statistics`
+- ~~`/api/track`~~
+- ~~`/api/analytics`~~
+- ~~`/api/events`~~
+- ~~`/track`~~
+- ~~`/analytics`~~
+- ~~`/statistics`~~
 
 当这些请求包含 base64 编码的数据时，插件会：
 1. 自动检测 base64 字段
