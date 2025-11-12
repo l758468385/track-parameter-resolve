@@ -302,3 +302,19 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onInstalled.addListener(() => {
   startCapturing();
 });
+
+// 确保 Service Worker 每次被唤醒时都注册监听，避免需要点图标才开始捕获
+// 有些情况下 SW 会被回收，只有在收到消息或点击图标时才重新激活
+// 这里在脚本加载时主动调用一次，保证监听已就绪
+try {
+  startCapturing();
+} catch (e) {
+  // 忽略异常，依赖后续事件再次触发
+}
+
+// 当 DevTools 或 Popup 主动拉取数据时，也顺带确保已开始捕获
+chrome.runtime.onMessage.addListener((request) => {
+  if (request && request.action === "getCapturedRequests" && !isCapturing) {
+    try { startCapturing(); } catch (_) {}
+  }
+});

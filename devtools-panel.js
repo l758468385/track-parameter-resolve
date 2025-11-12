@@ -12,6 +12,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   refreshBtn.addEventListener("click", refreshRequests);
   clearBtn.addEventListener("click", clearRequests);
+  
+  // 触发一次开始捕获，避免需点击图标才生效（MV3 SW 可能被回收）
+  try {
+    chrome.runtime.sendMessage({ action: "startCapture" });
+  } catch (e) {}
 
   // 初始化
   refreshRequests();
