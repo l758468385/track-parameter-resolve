@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Network Request Base64 Decoder",
-  "version": "1.1",
+  "version": "1.2",
   "description": "自动拦截和解码网络请求中的 base64 编码数据",
   "permissions": [
     "storage",
@@ -12,7 +12,7 @@
     "<all_urls>"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/popup.html",
     "default_title": "Network Request Decoder"
   },
   "background": {
@@ -25,5 +25,5 @@
       "run_at": "document_start"
     }
   ],
-  "devtools_page": "devtools.html"
+  "devtools_page": "devtools/devtools.html"
 }
