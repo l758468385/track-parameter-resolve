@@ -1,19 +1,24 @@
 // 后台脚本 - 拦截网络请求
-let capturedRequestsByTab = {}; // 按 tabId 存储请求: { tabId: [requests] }
+importScripts("utils.js");
+
+let capturedRequestsByTab = {};
 let isCapturing = false;
 
 const STORAGE_KEY = "capturedRequestsByTab";
 const storageArea = chrome.storage.session || chrome.storage.local;
 const stateReady = restoreCapturedRequests();
 
+// 防抖持久化，避免高频写入
+const debouncedPersist = Utils.debounce(() => {
+  storageSet({ [STORAGE_KEY]: capturedRequestsByTab }).catch((error) => {
+    console.error("无法缓存捕获数据", error);
+  });
+}, 300);
+
 function storageGet(keys) {
   return new Promise((resolve, reject) => {
     storageArea.get(keys, (result) => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(result);
-      }
+      chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve(result);
     });
   });
 }
@@ -21,11 +26,7 @@ function storageGet(keys) {
 function storageSet(items) {
   return new Promise((resolve, reject) => {
     storageArea.set(items, () => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve();
-      }
+      chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve();
     });
   });
 }
@@ -37,9 +38,7 @@ async function restoreCapturedRequests() {
       capturedRequestsByTab = stored[STORAGE_KEY];
       Object.keys(capturedRequestsByTab).forEach((tabId) => {
         const numericId = Number(tabId);
-        if (!Number.isNaN(numericId)) {
-          updateBadge(numericId);
-        }
+        if (!Number.isNaN(numericId)) updateBadge(numericId);
       });
     }
   } catch (error) {
@@ -47,32 +46,18 @@ async function restoreCapturedRequests() {
   }
 }
 
-function persistCapturedRequests() {
-  storageSet({ [STORAGE_KEY]: capturedRequestsByTab }).catch((error) => {
-    console.error("无法缓存捕获数据", error);
-  });
-}
-
-// 更新插件图标角标（针对特定标签页）
 function updateBadge(tabId) {
-  const requests = capturedRequestsByTab[tabId] || [];
-  const count = requests.length;
-  if (count > 0) {
-    chrome.action.setBadgeText({ text: count.toString(), tabId });
-    chrome.action.setBadgeBackgroundColor({ color: "#1a73e8", tabId }); // 蓝色背景
-  } else {
-    chrome.action.setBadgeText({ text: "", tabId }); // 清空角标
-  }
+  const count = (capturedRequestsByTab[tabId] || []).length;
+  chrome.action.setBadgeText({ text: count > 0 ? count.toString() : "", tabId });
+  if (count > 0) chrome.action.setBadgeBackgroundColor({ color: "#1a73e8", tabId });
 }
 
-// 清理已关闭标签页的数据
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   await stateReady;
   delete capturedRequestsByTab[tabId];
-  persistCapturedRequests();
+  debouncedPersist();
 });
 
-// 监听来自 popup 及 content script 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   stateReady
     .then(() => handleRuntimeMessage(request, sender, sendResponse))
@@ -84,61 +69,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function handleRuntimeMessage(request, sender, sendResponse) {
-  if (request.action === "startCapture") {
-    startCapturing();
-    sendResponse({ success: true });
-  } else if (request.action === "stopCapture") {
-    stopCapturing();
-    sendResponse({ success: true });
-  } else if (request.action === "getCapturedRequests") {
-    if (!isCapturing) {
+  const { action, tabId } = request;
+
+  switch (action) {
+    case "startCapture":
       startCapturing();
-    }
-    const tabId = request.tabId;
-    const requests = capturedRequestsByTab[tabId] || [];
-    sendResponse({ requests });
-  } else if (request.action === "clearRequests") {
-    const tabId = request.tabId;
-    capturedRequestsByTab[tabId] = [];
-    updateBadge(tabId);
-    persistCapturedRequests();
-    sendResponse({ success: true });
-  } else if (request.action === "interceptedRequest") {
-    const requestInfo = request.request;
-    const tabId = sender.tab?.id;
-    if (!tabId) {
-      sendResponse({ success: false, error: "No tab ID" });
-      return;
-    }
-    if (!capturedRequestsByTab[tabId]) {
+      sendResponse({ success: true });
+      break;
+    case "stopCapture":
+      stopCapturing();
+      sendResponse({ success: true });
+      break;
+    case "getCapturedRequests":
+      if (!isCapturing) startCapturing();
+      sendResponse({ requests: capturedRequestsByTab[tabId] || [] });
+      break;
+    case "clearRequests":
       capturedRequestsByTab[tabId] = [];
-    }
-    capturedRequestsByTab[tabId].unshift(requestInfo);
-    if (capturedRequestsByTab[tabId].length > 100) {
-      capturedRequestsByTab[tabId] = capturedRequestsByTab[tabId].slice(0, 100);
-    }
-    updateBadge(tabId);
-    persistCapturedRequests();
-    chrome.runtime
-      .sendMessage({
-        action: "newRequest",
-        request: requestInfo,
-        tabId: tabId,
-      })
-      .catch(() => {
-        // devtools 未初始, 忽略错误
-      });
-    sendResponse({ success: true });
-  } else {
-    sendResponse({ success: false, error: "unsupported_action" });
+      updateBadge(tabId);
+      debouncedPersist();
+      sendResponse({ success: true });
+      break;
+    case "interceptedRequest":
+      handleInterceptedRequest(request.request, sender.tab?.id, sendResponse);
+      break;
+    default:
+      sendResponse({ success: false, error: "unsupported_action" });
   }
 }
 
-// 开始捕获请求
+function handleInterceptedRequest(requestInfo, tabId, sendResponse) {
+  if (!tabId) {
+    sendResponse({ success: false, error: "No tab ID" });
+    return;
+  }
+  if (!capturedRequestsByTab[tabId]) capturedRequestsByTab[tabId] = [];
+  capturedRequestsByTab[tabId].unshift(requestInfo);
+  if (capturedRequestsByTab[tabId].length > 100) {
+    capturedRequestsByTab[tabId] = capturedRequestsByTab[tabId].slice(0, 100);
+  }
+  updateBadge(tabId);
+  debouncedPersist();
+  notifyDevtools(requestInfo, tabId);
+  sendResponse({ success: true });
+}
+
+function notifyDevtools(requestInfo, tabId) {
+  chrome.runtime.sendMessage({
+    action: "newRequest",
+    request: requestInfo,
+    tabId: tabId,
+  }).catch(() => {});
+}
+
 function startCapturing() {
   if (isCapturing) return;
   isCapturing = true;
-  // 监听所有网络请求
   chrome.webRequest.onBeforeRequest.addListener(
     handleRequest,
     { urls: ["<all_urls>"] },
@@ -147,7 +133,6 @@ function startCapturing() {
   console.log("开始捕获网络请求...");
 }
 
-// 停止捕获请求
 function stopCapturing() {
   if (!isCapturing) return;
   isCapturing = false;
@@ -157,45 +142,35 @@ function stopCapturing() {
   console.log("停止捕获网络请求");
 }
 
-// 处理拦截到的请求
 async function handleRequest(details) {
   await stateReady;
   try {
-    // 只处理 POST 请求
     if (details.method !== "POST") return;
-    // 检查是否是我们感兴趣的 API 端点
     const url = new URL(details.url);
-    const isTargetAPI = isTargetEndpoint(url.pathname);
-    if (!isTargetAPI) return;
+    if (!Utils.isTargetEndpoint(url.pathname)) return;
 
     const tabId = details.tabId;
-    if (tabId < 0) return; // 忽略非标签页请求
+    if (tabId < 0) return;
 
     let requestData = null;
     let decodedData = [];
 
-    // 解析请求体
     if (details.requestBody) {
       if (details.requestBody.raw) {
-        // 处理原始数据
         const rawData = details.requestBody.raw[0];
         if (rawData.bytes) {
-          const decoder = new TextDecoder();
-          const bodyText = decoder.decode(rawData.bytes);
+          const bodyText = new TextDecoder().decode(rawData.bytes);
           requestData = bodyText;
-          // 尝试解析 JSON 并查找 base64 数据
           try {
-            const jsonData = JSON.parse(bodyText);
-            decodedData = findAndDecodeBase64(jsonData);
+            decodedData = Utils.findAndDecodeBase64(JSON.parse(bodyText));
           } catch (e) {
-            // 不是 JSON 格式，尝试直接解码
-            if (isBase64(bodyText)) {
+            if (Utils.isBase64(bodyText)) {
               try {
-                const decoded = decodeBase64UTF8(bodyText);
+                const decoded = Utils.decodeBase64UTF8(bodyText);
                 decodedData.push({
                   field: "request_body",
                   original: bodyText,
-                  decoded: tryParseJSON(decoded),
+                  decoded: Utils.tryParseJSON(decoded),
                 });
               } catch (decodeError) {
                 console.warn("Base64 解码失败:", decodeError);
@@ -204,20 +179,15 @@ async function handleRequest(details) {
           }
         }
       } else if (details.requestBody.formData) {
-        // 处理表单数据
         requestData = JSON.stringify(details.requestBody.formData);
-        // 检查表单数据中的 base64
-        for (const [key, values] of Object.entries(
-          details.requestBody.formData
-        )) {
+        for (const [key, values] of Object.entries(details.requestBody.formData)) {
           values.forEach((value) => {
-            if (isBase64(value)) {
+            if (Utils.isBase64(value)) {
               try {
-                const decoded = decodeBase64UTF8(value);
                 decodedData.push({
                   field: key,
                   original: value,
-                  decoded: tryParseJSON(decoded),
+                  decoded: Utils.tryParseJSON(Utils.decodeBase64UTF8(value)),
                 });
               } catch (decodeError) {
                 console.warn("Base64 解码失败:", decodeError);
@@ -228,124 +198,30 @@ async function handleRequest(details) {
       }
     }
 
-    // 只保存有 base64 数据的请求或目标 API
-    if (decodedData.length > 0 || isTargetAPI) {
+    if (decodedData.length > 0 || Utils.isTargetEndpoint(url.pathname)) {
       const requestInfo = {
         id: Date.now() + Math.random(),
         timestamp: new Date().toISOString(),
         url: details.url,
         method: details.method,
-        requestData: requestData,
-        decodedData: decodedData,
-        isTargetAPI: isTargetAPI,
+        requestData,
+        decodedData,
+        isTargetAPI: true,
       };
-      // 初始化该标签页的请求数组
-      if (!capturedRequestsByTab[tabId]) {
-        capturedRequestsByTab[tabId] = [];
-      }
+      if (!capturedRequestsByTab[tabId]) capturedRequestsByTab[tabId] = [];
       capturedRequestsByTab[tabId].unshift(requestInfo);
-      // 限制保存的请求数量
       if (capturedRequestsByTab[tabId].length > 100) {
-        capturedRequestsByTab[tabId] = capturedRequestsByTab[tabId].slice(
-          0,
-          100
-        );
+        capturedRequestsByTab[tabId] = capturedRequestsByTab[tabId].slice(0, 100);
       }
-      // 更新角标
       updateBadge(tabId);
-      persistCapturedRequests();
-      // 通知该标签页的 devtools 有新请求
-      chrome.runtime
-        .sendMessage({
-          action: "newRequest",
-          request: requestInfo,
-          tabId: tabId,
-        })
-        .catch(() => {
-          // devtools 可能未打开，忽略错误
-        });
+      debouncedPersist();
+      notifyDevtools(requestInfo, tabId);
     }
   } catch (error) {
     console.error("处理请求时出错:", error);
   }
 }
 
-// 检查是否是目标 API 端点
-function isTargetEndpoint(pathname) {
-  // 只监控这一个特定的 API 端点
-  return pathname.includes("/api/statistics/v2/track");
-}
-
-// Base64 解码并正确处理 UTF-8
-function decodeBase64UTF8(base64Str) {
-  // 先用 atob 解码 base64
-  const binaryStr = atob(base64Str);
-  // 将二进制字符串转换为字节数组
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  // 使用 TextDecoder 正确解码 UTF-8
-  const decoder = new TextDecoder("utf-8");
-  return decoder.decode(bytes);
-}
-
-// 查找并解码 JSON 对象中的 base64 数据
-function findAndDecodeBase64(obj, path = "") {
-  const results = [];
-  if (typeof obj === "object" && obj !== null) {
-    for (const [key, value] of Object.entries(obj)) {
-      const currentPath = path ? `${path}.${key}` : key;
-      if (typeof value === "string" && isBase64(value) && value.length > 20) {
-        try {
-          const decoded = decodeBase64UTF8(value);
-          results.push({
-            field: currentPath,
-            original: value,
-            decoded: tryParseJSON(decoded),
-          });
-        } catch (e) {
-          console.warn(`无法解码 ${currentPath}:`, e);
-        }
-      } else if (typeof value === "object") {
-        results.push(...findAndDecodeBase64(value, currentPath));
-      }
-    }
-  }
-  return results;
-}
-
-// 检查字符串是否是 base64
-function isBase64(str) {
-  if (!str || typeof str !== "string" || str.length < 4) return false;
-  // Base64 正则表达式
-  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-  return base64Regex.test(str) && str.length % 4 === 0;
-}
-
-// 尝试解析 JSON
-function tryParseJSON(str) {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return str;
-  }
-}
-
-// 插件启动时自动开始捕获
-chrome.runtime.onStartup.addListener(() => {
-  startCapturing();
-});
-
-chrome.runtime.onInstalled.addListener(() => {
-  startCapturing();
-});
-
-// 确保 Service Worker 每次被唤醒时都注册监听，避免需要点图标才开始捕获
-// 有些情况下 SW 会被回收，只有在收到消息或点击图标时才重新激活
-// 这里在脚本加载时主动调用一次，保证监听已就绪
-try {
-  startCapturing();
-} catch (e) {
-  // 忽略异常，依赖后续事件再次触发
-}
+chrome.runtime.onStartup.addListener(() => startCapturing());
+chrome.runtime.onInstalled.addListener(() => startCapturing());
+try { startCapturing(); } catch (e) {}

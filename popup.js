@@ -1,60 +1,48 @@
-document.addEventListener('DOMContentLoaded', function () {
-  const clearBtn = document.getElementById('clearBtn');
-  const status = document.getElementById('status');
-  const requestsList = document.getElementById('requestsList');
-  let currentTabId = null; // 当前活动标签页 ID
+document.addEventListener("DOMContentLoaded", function () {
+  const clearBtn = document.getElementById("clearBtn");
+  const status = document.getElementById("status");
+  const requestsList = document.getElementById("requestsList");
+  let currentTabId = null;
 
-  // 初始化
   init();
+  clearBtn.addEventListener("click", clearRequests);
 
-  clearBtn.addEventListener('click', clearRequests);
-
-  // 监听来自 background 的新请求消息
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // 只显示当前标签页的请求
-    if (request.action === 'newRequest' && request.tabId === currentTabId) {
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === "newRequest" && request.tabId === currentTabId) {
       addRequestToUI(request.request);
     }
   });
 
   async function init() {
-    // 获取当前活动标签页
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       currentTabId = tab.id;
     } catch (error) {
-      console.error('获取当前标签页失败:', error);
+      console.error("获取当前标签页失败:", error);
       return;
     }
 
-    // 获取已捕获的请求
     try {
       const response = await chrome.runtime.sendMessage({
-        action: 'getCapturedRequests',
-        tabId: currentTabId, // 传递当前标签页 ID
+        action: "getCapturedRequests",
+        tabId: currentTabId,
       });
-      if (response && response.requests && response.requests.length > 0) {
-        displayRequests(response.requests);
-      }
+      if (response?.requests?.length > 0) displayRequests(response.requests);
     } catch (error) {
-      console.error('获取请求失败:', error);
+      console.error("获取请求失败:", error);
     }
 
-    // 自动开始捕获
     try {
-      await chrome.runtime.sendMessage({ action: 'startCapture' });
+      await chrome.runtime.sendMessage({ action: "startCapture" });
       updateStatus();
     } catch (error) {
-      console.error('开始捕获失败:', error);
+      console.error("开始捕获失败:", error);
     }
   }
 
   async function clearRequests() {
     try {
-      await chrome.runtime.sendMessage({ 
-        action: 'clearRequests',
-        tabId: currentTabId // 传递当前标签页 ID
-      });
+      await chrome.runtime.sendMessage({ action: "clearRequests", tabId: currentTabId });
       requestsList.innerHTML = `
         <div class="no-requests">
           <div class="no-requests-icon">📡</div>
@@ -63,62 +51,36 @@ document.addEventListener('DOMContentLoaded', function () {
       `;
       updateStatus();
     } catch (error) {
-      console.error('清空请求失败:', error);
+      console.error("清空请求失败:", error);
     }
   }
 
   function updateStatus() {
-    const count = requestsList.querySelectorAll('.request-item').length;
-    status.textContent = count > 0 ? `已捕获 ${count} 个请求` : '监控中...';
+    const count = requestsList.querySelectorAll(".request-item").length;
+    status.textContent = count > 0 ? `已捕获 ${count} 个请求` : "监控中...";
   }
 
   function displayRequests(requests) {
-    if (!requests || requests.length === 0) return;
-
-    requestsList.innerHTML = '';
-    // 反转数组，让最旧的在上面，最新的在下面
-    const reversedRequests = [...requests].reverse();
-    reversedRequests.forEach((request) => {
-      const requestElement = createRequestElement(request);
-      requestsList.appendChild(requestElement, requestsList.firstChild);
-    });
+    if (!requests?.length) return;
+    requestsList.innerHTML = "";
+    [...requests].reverse().forEach((req) => requestsList.appendChild(createRequestElement(req)));
   }
 
   function addRequestToUI(request) {
-    // 如果容器显示"无请求"消息，先清空
-    if (requestsList.querySelector('.no-requests')) {
-      requestsList.innerHTML = '';
-    }
-
-    const requestElement = createRequestElement(request);
-    // 新请求添加到最下面（因为我们要最新的在下面）
-    requestsList.appendChild(requestElement);
+    if (requestsList.querySelector(".no-requests")) requestsList.innerHTML = "";
+    requestsList.appendChild(createRequestElement(request));
     updateStatus();
   }
 
   function createRequestElement(request) {
-    const div = document.createElement('div');
-    div.className = 'request-item';
+    const div = document.createElement("div");
+    div.className = "request-item";
 
-    // 使用简洁的时间格式（只显示时:分:秒）
     const date = new Date(request.timestamp);
-    const time = date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit',
-      hour12: false 
-    });
-    
-    // 解析 URL 获取路径和查询参数
+    const time = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     const url = new URL(request.url);
     const displayUrl = url.pathname + url.search;
-
-    // 提取 data 字段
-    const dataField = request.decodedData
-      ? request.decodedData.find(
-          (item) => item.field === 'data' || item.field.endsWith('.data')
-        )
-      : null;
+    const dataField = request.decodedData?.find((item) => item.field === "data" || item.field.endsWith(".data"));
 
     div.innerHTML = `
       <div class="request-header">
@@ -128,36 +90,22 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="request-time">${time}</div>
         <div class="expand-icon">▶</div>
       </div>
-      <div class="request-details" id="details-${request.id}">
-        ${createRequestDetailsHTML(request, dataField)}
-      </div>
+      <div class="request-details">${createRequestDetailsHTML(request, dataField)}</div>
     `;
 
-    // 点击展开/收起详情
-    const header = div.querySelector('.request-header');
-    header.addEventListener('click', function () {
-      const details = div.querySelector('.request-details');
-      const isExpanded = details.classList.contains('show');
-
-      if (isExpanded) {
-        details.classList.remove('show');
-        div.classList.remove('expanded');
-      } else {
-        details.classList.add('show');
-        div.classList.add('expanded');
-      }
+    const header = div.querySelector(".request-header");
+    header.addEventListener("click", () => {
+      const details = div.querySelector(".request-details");
+      details.classList.toggle("show");
+      div.classList.toggle("expanded");
     });
 
-    // 绑定复制按钮事件
-    const copyBtn = div.querySelector('.copy-btn');
+    const copyBtn = div.querySelector(".copy-btn");
     if (copyBtn) {
-      copyBtn.addEventListener('click', function (e) {
-        e.stopPropagation(); // 防止触发展开/收起
-        const targetId = this.getAttribute('data-target');
-        const jsonElement = document.getElementById(targetId);
-        if (jsonElement) {
-          copyToClipboard(jsonElement.textContent, this);
-        }
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const jsonElement = document.getElementById(copyBtn.getAttribute("data-target"));
+        if (jsonElement) copyToClipboard(jsonElement.textContent, copyBtn);
       });
     }
 
@@ -165,13 +113,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function createRequestDetailsHTML(request, dataField) {
-    const detailsId = `details-${request.id}`;
-    let html = '';
-
-    // 显示解码后的 data 字段
+    let html = "";
     if (dataField) {
       const decodedJson = formatJSON(dataField.decoded);
-
       html += `
         <div class="section">
           <div class="section-title">解码后的 Data 字段</div>
@@ -180,81 +124,56 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
       `;
     } else {
-      html += `
-        <div class="section">
-          <div style="color: #5f6368; font-size: 12px; font-style: italic;">未找到 data 字段</div>
-        </div>
-      `;
+      html += `<div class="section"><div style="color:#5f6368;font-size:12px;font-style:italic;">未找到 data 字段</div></div>`;
     }
-
-    // 显示原始请求数据（可折叠）
     if (request.requestData) {
       html += `
         <div class="section">
           <div class="section-title">原始请求载荷</div>
           <details>
-            <summary style="cursor: pointer; color: #1a73e8; font-size: 12px; margin-bottom: 8px;">显示原始数据</summary>
-            <div class="json-viewer">${formatJSON(
-              tryParseJSON(request.requestData)
-            )}</div>
+            <summary style="cursor:pointer;color:#1a73e8;font-size:12px;margin-bottom:8px;">显示原始数据</summary>
+            <div class="json-viewer">${formatJSON(tryParseJSON(request.requestData))}</div>
           </details>
         </div>
       `;
     }
-
     return html;
   }
 
   function formatJSON(data) {
-    if (typeof data === 'object') {
-      return JSON.stringify(data, null, 2);
-    }
-    return data;
+    return typeof data === "object" ? JSON.stringify(data, null, 2) : data;
   }
 
   function tryParseJSON(str) {
-    try {
-      return JSON.parse(str);
-    } catch (e) {
-      return str;
-    }
+    try { return JSON.parse(str); } catch (e) { return str; }
   }
 
   function copyToClipboard(text, btn) {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        // 显示复制成功提示
-        const originalText = btn.textContent;
-        const originalBg = btn.style.background;
-        btn.textContent = '已复制!';
-        btn.style.background = '#34a853';
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.style.background = originalBg;
-        }, 1500);
-      })
-      .catch((err) => {
-        console.error('复制失败:', err);
-        // 降级方案：使用 execCommand
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-          document.execCommand('copy');
-          btn.textContent = '已复制!';
-          btn.style.background = '#34a853';
-          setTimeout(() => {
-            btn.textContent = '复制 JSON';
-            btn.style.background = '';
-          }, 1500);
-        } catch (e) {
-          alert('复制失败，请手动复制');
-        }
-        document.body.removeChild(textarea);
-      });
+    const showSuccess = () => {
+      const originalText = btn.textContent;
+      const originalBg = btn.style.background;
+      btn.textContent = "已复制!";
+      btn.style.background = "#34a853";
+      setTimeout(() => { btn.textContent = originalText; btn.style.background = originalBg; }, 1500);
+    };
+
+    const fallbackCopy = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (document.execCommand("copy")) showSuccess();
+        else alert("复制失败，请手动复制");
+      } catch (e) { alert("复制失败，请手动复制"); }
+      document.body.removeChild(textarea);
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(showSuccess).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
   }
 });

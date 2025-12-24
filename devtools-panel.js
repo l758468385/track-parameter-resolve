@@ -1,7 +1,6 @@
-// DevTools 面板脚本
 let capturedRequests = [];
 let selectedRequestId = null;
-let currentTabId = chrome.devtools.inspectedWindow.tabId; // 获取当前标签页 ID
+const currentTabId = chrome.devtools.inspectedWindow.tabId;
 
 document.addEventListener("DOMContentLoaded", function () {
   const refreshBtn = document.getElementById("refreshBtn");
@@ -12,18 +11,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   refreshBtn.addEventListener("click", refreshRequests);
   clearBtn.addEventListener("click", clearRequests);
-  
-  // 触发一次开始捕获，避免需点击图标才生效（MV3 SW 可能被回收）
-  try {
-    chrome.runtime.sendMessage({ action: "startCapture" });
-  } catch (e) {}
 
-  // 初始化
+  try { chrome.runtime.sendMessage({ action: "startCapture" }); } catch (e) {}
   refreshRequests();
 
-  // 监听来自 background 的消息
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // 只处理当前标签页的请求
+  chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "newRequest" && request.tabId === currentTabId) {
       addRequest(request.request);
     }
@@ -31,11 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function refreshRequests() {
     try {
-      const response = await chrome.runtime.sendMessage({
-        action: "getCapturedRequests",
-        tabId: currentTabId, // 传递当前标签页 ID
-      });
-      if (response && response.requests) {
+      const response = await chrome.runtime.sendMessage({ action: "getCapturedRequests", tabId: currentTabId });
+      if (response?.requests) {
         capturedRequests = response.requests;
         displayRequests();
         updateStatus();
@@ -48,15 +37,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function clearRequests() {
     try {
-      await chrome.runtime.sendMessage({ 
-        action: "clearRequests",
-        tabId: currentTabId // 传递当前标签页 ID
-      });
+      await chrome.runtime.sendMessage({ action: "clearRequests", tabId: currentTabId });
       capturedRequests = [];
       selectedRequestId = null;
       displayRequests();
-      detailsPanel.innerHTML =
-        '<div class="no-selection">← 选择一个请求查看详情</div>';
+      detailsPanel.innerHTML = '<div class="no-selection">← 选择一个请求查看详情</div>';
       updateStatus();
     } catch (error) {
       console.error("清空请求失败:", error);
@@ -65,23 +50,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function addRequest(request) {
     capturedRequests.unshift(request);
-
-    // 如果列表中有空状态提示，先清空
-    const emptyState = requestsList.querySelector(".empty-state");
-    if (emptyState) {
-      requestsList.innerHTML = "";
-    }
-
-    // 新请求添加到最下面
-    const requestElement = createRequestListItem(request);
-    requestsList.appendChild(requestElement);
+    if (requestsList.querySelector(".empty-state")) requestsList.innerHTML = "";
+    requestsList.appendChild(createRequestListItem(request));
     updateStatus();
   }
 
   function updateStatus() {
     const count = capturedRequests.length;
-    status.textContent =
-      count > 0 ? `已捕获 ${count} 个请求` : "Track API 解码器";
+    status.textContent = count > 0 ? `已捕获 ${count} 个请求` : "Track API 解码器";
   }
 
   function displayRequests() {
@@ -94,33 +70,16 @@ document.addEventListener("DOMContentLoaded", function () {
       `;
       return;
     }
-
     requestsList.innerHTML = "";
-    // 反转数组，让最旧的在上面，最新的在下面（像聊天记录）
-    const reversedRequests = [...capturedRequests].reverse();
-    reversedRequests.forEach((request) => {
-      const requestElement = createRequestListItem(request);
-      requestsList.appendChild(requestElement);
-    });
+    [...capturedRequests].reverse().forEach((req) => requestsList.appendChild(createRequestListItem(req)));
   }
 
   function createRequestListItem(request) {
     const div = document.createElement("div");
-    div.className = "request-item";
-    if (request.id === selectedRequestId) {
-      div.classList.add("selected");
-    }
+    div.className = "request-item" + (request.id === selectedRequestId ? " selected" : "");
 
-    // 使用简洁的时间格式（只显示时:分:秒）
     const date = new Date(request.timestamp);
-    const time = date.toLocaleTimeString("zh-CN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-
-    // 解析 URL 获取路径和查询参数
+    const time = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     const url = new URL(request.url);
     const displayUrl = url.pathname + url.search;
 
@@ -131,12 +90,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     div.addEventListener("click", () => {
       selectedRequestId = request.id;
-      // 更新选中状态
-      document.querySelectorAll(".request-item").forEach((item) => {
-        item.classList.remove("selected");
-      });
+      document.querySelectorAll(".request-item").forEach((item) => item.classList.remove("selected"));
       div.classList.add("selected");
-      // 显示详情
       showRequestDetails(request);
     });
 
@@ -144,88 +99,57 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showRequestDetails(request) {
-    // 提取 data 字段
-    const dataField = request.decodedData
-      ? request.decodedData.find(
-          (item) => item.field === "data" || item.field.endsWith(".data")
-        )
-      : null;
-
+    const dataField = request.decodedData?.find((item) => item.field === "data" || item.field.endsWith(".data"));
     let html = "";
 
     if (dataField) {
       const decodedJson = formatJSON(dataField.decoded);
-
       html += `
         <div class="section">
           <div class="section-title">解码后的 Data 字段</div>
           <div class="json-viewer">${decodedJson}</div>
-          <button class="copy-btn" data-copy="${escapeForAttribute(
-            decodedJson
-          )}">复制 JSON</button>
+          <button class="copy-btn" data-copy="${escapeForAttribute(decodedJson)}">复制 JSON</button>
         </div>
       `;
     } else {
-      html += `
-        <div class="section">
-          <div style="color: #5f6368; font-size: 12px; font-style: italic;">未找到 data 字段</div>
-        </div>
-      `;
+      html += `<div class="section"><div style="color:#5f6368;font-size:12px;font-style:italic;">未找到 data 字段</div></div>`;
     }
 
-    // 原始请求数据
     if (request.requestData) {
       html += `
         <div class="section">
           <div class="section-title">原始请求载荷</div>
           <details>
-            <summary style="cursor: pointer; color: #1a73e8; font-size: 12px; margin-bottom: 12px;">显示原始数据</summary>
-            <div class="json-viewer">${formatJSON(
-              tryParseJSON(request.requestData)
-            )}</div>
+            <summary style="cursor:pointer;color:#1a73e8;font-size:12px;margin-bottom:12px;">显示原始数据</summary>
+            <div class="json-viewer">${formatJSON(tryParseJSON(request.requestData))}</div>
           </details>
         </div>
       `;
     }
 
-    // 请求信息
     html += `
       <div class="section">
         <div class="section-title">请求信息</div>
-        <div style="font-size: 12px; color: #333; line-height: 1.8;">
+        <div style="font-size:12px;color:#333;line-height:1.8;">
           <div><strong>URL:</strong> ${request.url}</div>
           <div><strong>方法:</strong> ${request.method}</div>
-          <div><strong>时间:</strong> ${new Date(
-            request.timestamp
-          ).toLocaleString("zh-CN")}</div>
+          <div><strong>时间:</strong> ${new Date(request.timestamp).toLocaleString("zh-CN")}</div>
         </div>
       </div>
     `;
 
     detailsPanel.innerHTML = html;
-
-    // 绑定复制按钮事件
     detailsPanel.querySelectorAll(".copy-btn").forEach((btn) => {
-      btn.addEventListener("click", function () {
-        const text = this.getAttribute("data-copy");
-        copyToClipboard(text, this);
-      });
+      btn.addEventListener("click", () => copyToClipboard(btn.getAttribute("data-copy"), btn));
     });
   }
 
   function formatJSON(data) {
-    if (typeof data === "object") {
-      return JSON.stringify(data, null, 2);
-    }
-    return data;
+    return typeof data === "object" ? JSON.stringify(data, null, 2) : data;
   }
 
   function tryParseJSON(str) {
-    try {
-      return JSON.parse(str);
-    } catch (e) {
-      return str;
-    }
+    try { return JSON.parse(str); } catch (e) { return str; }
   }
 
   function escapeForAttribute(str) {
@@ -233,61 +157,34 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function copyToClipboard(text, btn) {
-    // 解码 HTML 实体
     const textarea = document.createElement("textarea");
     textarea.innerHTML = text;
     const decodedText = textarea.value;
 
-    // 尝试使用 Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard
-        .writeText(decodedText)
-        .then(() => {
-          const originalText = btn.textContent;
-          btn.textContent = "已复制!";
-          btn.style.background = "#34a853";
-          setTimeout(() => {
-            btn.textContent = originalText;
-            btn.style.background = "#1a73e8";
-          }, 1500);
-        })
-        .catch((err) => {
-          console.error("Clipboard API 失败:", err);
-          fallbackCopy(decodedText, btn);
-        });
+    const showSuccess = () => {
+      const originalText = btn.textContent;
+      btn.textContent = "已复制!";
+      btn.style.background = "#34a853";
+      setTimeout(() => { btn.textContent = originalText; btn.style.background = "#1a73e8"; }, 1500);
+    };
+
+    const fallbackCopy = () => {
+      const ta = document.createElement("textarea");
+      ta.value = decodedText;
+      ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        if (document.execCommand("copy")) showSuccess();
+        else alert("复制失败，请手动复制");
+      } catch (err) { alert("复制失败，请手动复制"); }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(decodedText).then(showSuccess).catch(fallbackCopy);
     } else {
-      // 降级方案
-      fallbackCopy(decodedText, btn);
+      fallbackCopy();
     }
-  }
-
-  function fallbackCopy(text, btn) {
-    // 使用 execCommand 降级方案
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    try {
-      const successful = document.execCommand("copy");
-      if (successful) {
-        const originalText = btn.textContent;
-        btn.textContent = "已复制!";
-        btn.style.background = "#34a853";
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.style.background = "#1a73e8";
-        }, 1500);
-      } else {
-        alert("复制失败，请手动复制");
-      }
-    } catch (err) {
-      console.error("execCommand 失败:", err);
-      alert("复制失败，请手动复制");
-    }
-
-    document.body.removeChild(textarea);
   }
 });
