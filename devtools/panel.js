@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
       html += `
         <div class="section">
           <div class="section-title">解码后的 Data 字段</div>
-          <div class="json-viewer">${decodedJson}</div>
+          <div class="json-viewer">${syntaxHighlight(dataField.decoded)}</div>
           <button class="copy-btn" data-copy="${escapeForAttribute(decodedJson)}">复制 JSON</button>
         </div>
       `;
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="section-title">原始请求载荷</div>
           <details>
             <summary style="cursor:pointer;color:#1a73e8;font-size:12px;margin-bottom:12px;">显示原始数据</summary>
-            <div class="json-viewer">${formatJSON(tryParseJSON(request.requestData))}</div>
+            <div class="json-viewer">${syntaxHighlight(tryParseJSON(request.requestData))}</div>
           </details>
         </div>
       `;
@@ -145,7 +145,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function formatJSON(data) {
+    // Keep this for copy functionality or raw string
     return typeof data === "object" ? JSON.stringify(data, null, 2) : data;
+  }
+
+  function syntaxHighlight(json) {
+    if (typeof json !== 'string') {
+      json = JSON.stringify(json, undefined, 2);
+    }
+    if (!json) return '';
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+      let cls = 'number';
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = 'key';
+        } else {
+          cls = 'string';
+        }
+      } else if (/true|false/.test(match)) {
+        cls = 'boolean';
+      } else if (/null/.test(match)) {
+        cls = 'null';
+      }
+      return '<span class="' + cls + '">' + match + '</span>';
+    });
   }
 
   function tryParseJSON(str) {
