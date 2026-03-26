@@ -1,0 +1,32 @@
+{
+  "name": "track-parameter-resolve",
+  "displayName": "Network Request Base64 Decoder",
+  "version": "1.2.0",
+  "description": "自动拦截和解码网络请求中的 base64 编码数据",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package"
+  },
+  "dependencies": {
+    "plasmo": "^0.90.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  },
+  "manifest": {
+    "permissions": [
+      "storage",
+      "webRequest",
+      "clipboardWrite"
+    ],
+    "host_permissions": [
+      "<all_urls>"
+    ]
+  }
+}

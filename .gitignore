@@ -8,3 +8,13 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Plasmo
+build/
+.plasmo/
+
+# Package
+*.tgz
